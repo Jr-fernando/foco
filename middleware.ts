@@ -8,9 +8,24 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Se as variáveis de ambiente não estiverem configuradas,
+  // permite acesso às rotas de auth e redireciona o resto para /entrar.
+  // Isso evita crash 500 (MIDDLEWARE_INVOCATION_FAILED) em deploy sem env vars.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const isAuthRoute = request.nextUrl.pathname.startsWith('/entrar') ||
+      request.nextUrl.pathname.startsWith('/cadastro')
+
+    if (isAuthRoute) return response
+
+    return NextResponse.redirect(new URL('/entrar', request.url))
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -50,3 +65,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)',
   ],
 }
+
