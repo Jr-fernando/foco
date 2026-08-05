@@ -1,0 +1,24 @@
+:root {
+  --ink: #12181a;
+  --paper: #f4f1e8;
+  --pine-400: #1d9e75;
+  --coral-500: #d85a30;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
+/*
+  Nota de implementação: os estilos completos (identidade visual, anel de
+  progresso animado, cores por prioridade, etc.) do protótipo em
+  foco.html ainda precisam ser portados para este arquivo / CSS Modules
+  na Fase 1 do roadmap. Este arquivo é o esqueleto funcional mínimo.
+*/
