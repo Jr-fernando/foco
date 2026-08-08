@@ -18,10 +18,11 @@ create table public.profiles (
 alter table public.profiles enable row level security;
 
 create policy "profiles_select_own" on public.profiles
-  for select using (auth.uid() = id);
+  for select using ((select auth.uid()) = id);
 
 create policy "profiles_update_own" on public.profiles
-  for update using (auth.uid() = id);
+  for update using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
 
 -- Cria o profile automaticamente quando um usuário se cadastra
 create function public.handle_new_user()
@@ -60,20 +61,20 @@ create index tasks_user_created_idx on public.tasks (user_id, created_at desc);
 alter table public.tasks enable row level security;
 
 create policy "tasks_select_own" on public.tasks
-  for select using (auth.uid() = user_id);
+  for select using ((select auth.uid()) = user_id);
 
 create policy "tasks_insert_own" on public.tasks
-  for insert with check (auth.uid() = user_id);
+  for insert with check ((select auth.uid()) = user_id);
 
 create policy "tasks_update_own" on public.tasks
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 create policy "tasks_delete_own" on public.tasks
-  for delete using (auth.uid() = user_id);
+  for delete using ((select auth.uid()) = user_id);
 
 -- updated_at automático
 create function public.set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   new.updated_at = now();
   return new;
@@ -103,7 +104,7 @@ create table public.streaks (
 alter table public.streaks enable row level security;
 
 create policy "streaks_select_own" on public.streaks
-  for select using (auth.uid() = user_id);
+  for select using ((select auth.uid()) = user_id);
 
 -- Sem policy de insert/update para o client: streaks só mudam via função
 -- SECURITY DEFINER abaixo, chamada pela aplicação autenticada. Isso evita
@@ -159,7 +160,10 @@ end;
 $$;
 
 revoke execute on function public.register_activity(uuid) from public;
+revoke execute on function public.register_activity(uuid) from anon;
 grant execute on function public.register_activity(uuid) to authenticated;
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- ========== INTEGRAÇÃO N8N (leitura via service_role) ==========
 -- O n8n nunca usa a anon key. Usa a service_role key (que bypassa RLS)
