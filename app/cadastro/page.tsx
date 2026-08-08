@@ -7,6 +7,20 @@ function isSupabaseConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
 
+function signupErrorMessage(message: string) {
+  const wait = message.match(/after\s+(\d+)\s+seconds/i)
+
+  if (wait) {
+    return `Aguarde ${wait[1]} segundos antes de pedir outro e-mail de confirmação.`
+  }
+
+  if (/already registered/i.test(message)) {
+    return 'Este e-mail já tem uma conta. Tente entrar ou aguarde o e-mail de confirmação.'
+  }
+
+  return 'Não foi possível criar sua conta agora. Confira os dados e tente novamente.'
+}
+
 async function signUp(formData: FormData) {
   'use server'
   const email = String(formData.get('email') ?? '')
@@ -22,7 +36,7 @@ async function signUp(formData: FormData) {
     options: { data: { display_name: displayName } },
   })
 
-  if (error) redirect('/cadastro?erro=' + encodeURIComponent('Não foi possível criar a conta. ' + error.message))
+  if (error) redirect('/cadastro?erro=' + encodeURIComponent(signupErrorMessage(error.message)))
   redirect('/entrar?criado=1')
 }
 
