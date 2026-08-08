@@ -158,12 +158,15 @@ begin
 end;
 $$;
 
+revoke execute on function public.register_activity(uuid) from public;
+grant execute on function public.register_activity(uuid) to authenticated;
+
 -- ========== INTEGRAÇÃO N8N (leitura via service_role) ==========
 -- O n8n nunca usa a anon key. Usa a service_role key (que bypassa RLS)
 -- guardada como credencial no próprio n8n, nunca no client/front.
 -- View de conveniência para o workflow de automação ler tarefas pendentes
 -- relacionadas à revenda, sem expor a tabela inteira.
-create view public.tasks_pending_resale as
+create view public.tasks_pending_resale with (security_invoker = true) as
   select id, user_id, title, priority, created_at
   from public.tasks
   where done = false and category = 'revenda-iphone';
