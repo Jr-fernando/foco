@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { Painel } from './painel'
 
+// A página depende da sessão e das variáveis do Supabase em tempo de execução.
+// Sem esta marcação, o Next tenta pré-renderizá-la durante a build da Vercel,
+// antes que essas variáveis estejam disponíveis, e o deploy falha.
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
   const supabase = createClient()
 
