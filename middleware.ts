@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isLandingRoute = pathname === '/'
   const isSignInRoute = pathname.startsWith('/entrar') || pathname.startsWith('/cadastro')
-  const isPublicRoute = isLandingRoute || isSignInRoute || pathname.startsWith('/planos') || pathname.startsWith('/api/public')
+  const isPublicRoute = isLandingRoute || isSignInRoute || pathname.startsWith('/planos') || pathname.startsWith('/recursos') || pathname.startsWith('/api/public')
 
   // Se as variáveis de ambiente não estiverem configuradas,
   // mantém as páginas públicas acessíveis e evita crash 500 no deploy.

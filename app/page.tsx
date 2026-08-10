@@ -14,6 +14,7 @@ export default function HomePage() {
         </a>
         <div className="marketing-links">
           <a href="#como-funciona">Como funciona</a>
+          <a href="/recursos">Recursos</a>
           <a href="/planos">Planos</a>
           <a className="nav-signin" href="/entrar">Entrar</a>
           <a className="button button-primary nav-cta" href="/cadastro">Começar grátis</a>

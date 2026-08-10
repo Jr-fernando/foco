@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './product.css'
+import './refinement.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://foco-six-sand.vercel.app'),
