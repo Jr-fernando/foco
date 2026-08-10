@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { createTask, toggleTask, deleteTask } from './actions/tasks'
+import { createTask, toggleTask, deleteTask, scheduleTask } from './actions/tasks'
 import { signOut } from './actions/auth'
+import { FocusTimer } from './focus-timer'
 
 type Task = {
   id: string
@@ -10,6 +11,8 @@ type Task = {
   priority: 'alta' | 'media' | 'baixa'
   done: boolean
   category: string | null
+  scheduled_for: string | null
+  estimate_minutes: number | null
 }
 
 type Streak = { current_streak: number; longest_streak: number }
@@ -17,6 +20,7 @@ type Filter = 'pendentes' | 'todas' | 'concluidas'
 
 const priorityLabel = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const categories = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
+const today = new Date().toISOString().slice(0, 10)
 
 export function Painel({
   initialTasks,
@@ -36,6 +40,7 @@ export function Painel({
 
   const pending = tasks.filter((task) => !task.done)
   const done = tasks.filter((task) => task.done)
+  const todayTasks = pending.filter((task) => task.scheduled_for === today)
   const filteredByStatus = filter === 'pendentes' ? pending : filter === 'concluidas' ? done : tasks
   const visible = categoryFilter === 'todas'
     ? filteredByStatus
@@ -55,6 +60,7 @@ export function Painel({
 
     const form = document.querySelector<HTMLFormElement>('[data-task-form]')
     form?.reset()
+    if (result.task) setTasks((previous) => [result.task as Task, ...previous])
     setNotice('Tarefa adicionada. Continue no seu ritmo.')
   }
 
@@ -85,6 +91,19 @@ export function Painel({
 
     if (result.error) {
       setTasks((previous) => [removed, ...previous])
+      setNotice(result.error)
+    }
+  }
+
+  async function handleSchedule(id: string, scheduledFor: string | null) {
+    const previous = tasks
+    setNotice(null)
+    setUpdatingTask(id)
+    setTasks((current) => current.map((task) => task.id === id ? { ...task, scheduled_for: scheduledFor } : task))
+    const result = await scheduleTask(id, scheduledFor)
+    setUpdatingTask(null)
+    if (result.error) {
+      setTasks(previous)
       setNotice(result.error)
     }
   }
@@ -137,6 +156,16 @@ export function Painel({
           </div>
         </section>
 
+        <section className="daily-focus-grid" aria-label="Planejamento de hoje">
+          <article className="today-card">
+            <div className="today-card-heading"><div><p className="eyebrow">Meu dia</p><h2>O que merece sua atenção?</h2></div><span>{todayTasks.length}/3</span></div>
+            {todayTasks.length ? (
+              <ul>{todayTasks.slice(0, 3).map((task) => <li key={task.id}><span>{task.title}</span><button disabled={updatingTask === task.id} onClick={() => handleSchedule(task.id, null)}>Remover</button></li>)}</ul>
+            ) : <p className="today-empty">Escolha as tarefas que transformam intenção em um dia possível.</p>}
+          </article>
+          <FocusTimer />
+        </section>
+
         <section className="task-composer" aria-labelledby="new-task-title">
           <div className="section-title">
             <div>
@@ -157,6 +186,18 @@ export function Painel({
             <select id="task-category" name="category" defaultValue="">
               <option value="">Sem categoria</option>
               {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <label className="sr-only" htmlFor="task-date">Quando fazer</label>
+            <select id="task-date" name="scheduledFor" defaultValue={today}>
+              <option value={today}>Hoje</option>
+              <option value="">Sem data</option>
+            </select>
+            <label className="sr-only" htmlFor="task-estimate">Tempo estimado</label>
+            <select id="task-estimate" name="estimateMinutes" defaultValue="25">
+              <option value="15">15 min</option>
+              <option value="25">25 min</option>
+              <option value="45">45 min</option>
+              <option value="60">1 hora</option>
             </select>
             <button className="button button-primary" type="submit" disabled={isCreating}>
               {isCreating ? 'Adicionando...' : 'Adicionar tarefa'}
@@ -205,6 +246,9 @@ export function Painel({
                 </button>
                 <span className="task-title">{task.title}</span>
                 {task.category && <span className="task-category">{task.category}</span>}
+                {task.scheduled_for === today ? <span className="today-tag">Hoje</span> : (
+                  <button className="plan-button" disabled={updatingTask === task.id} onClick={() => handleSchedule(task.id, today)}>Planejar hoje</button>
+                )}
                 <span className={`priority priority-${task.priority}`}>{priorityLabel[task.priority]}</span>
                 <button
                   className="delete-button"

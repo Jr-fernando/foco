@@ -8,6 +8,11 @@ const CATEGORIES = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
 type Priority = (typeof PRIORITIES)[number]
 type Category = (typeof CATEGORIES)[number]
 
+function readDate(value: FormDataEntryValue | null) {
+  const date = String(value ?? '')
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null
+}
+
 function isPriority(value: string): value is Priority {
   return (PRIORITIES as readonly string[]).includes(value)
 }
@@ -32,22 +37,27 @@ export async function createTask(formData: FormData) {
   const priorityRaw = String(formData.get('priority') ?? 'media')
   const categoryRaw = String(formData.get('category') ?? '')
   const category = isCategory(categoryRaw) ? categoryRaw : null
+  const scheduledFor = readDate(formData.get('scheduledFor'))
+  const estimateRaw = Number(formData.get('estimateMinutes'))
+  const estimateMinutes = Number.isInteger(estimateRaw) && estimateRaw >= 5 && estimateRaw <= 480 ? estimateRaw : null
 
   if (!title) return { error: 'A tarefa precisa de um título.' }
   if (title.length > 280) return { error: 'Título muito longo (máx. 280 caracteres).' }
   const priority = isPriority(priorityRaw) ? priorityRaw : 'media'
 
-  const { error } = await supabase.from('tasks').insert({
+  const { data, error } = await supabase.from('tasks').insert({
     user_id: user.id,
     title,
     priority,
     category,
-  })
+    scheduled_for: scheduledFor,
+    estimate_minutes: estimateMinutes,
+  }).select('*').single()
 
   if (error) return { error: 'Não foi possível criar a tarefa. Tente de novo.' }
 
   revalidatePath('/painel')
-  return { error: null }
+  return { error: null, task: data }
 }
 
 export async function toggleTask(taskId: string, done: boolean) {
@@ -81,6 +91,22 @@ export async function deleteTask(taskId: string) {
     .eq('user_id', user.id)
 
   if (error) return { error: 'Não foi possível excluir a tarefa.' }
+
+  revalidatePath('/painel')
+  return { error: null }
+}
+
+export async function scheduleTask(taskId: string, scheduledFor: string | null) {
+  const { supabase, user } = await requireUser()
+  const safeDate = scheduledFor && /^\d{4}-\d{2}-\d{2}$/.test(scheduledFor) ? scheduledFor : null
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ scheduled_for: safeDate })
+    .eq('id', taskId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: 'Não foi possível atualizar o planejamento.' }
 
   revalidatePath('/painel')
   return { error: null }
