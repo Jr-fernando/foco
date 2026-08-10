@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createTask, toggleTask, deleteTask, scheduleTask } from './actions/tasks'
 import { signOut } from './actions/auth'
 import { FocusTimer } from './focus-timer'
+import { AppNav } from './components/app-nav'
 
 type Task = {
   id: string
@@ -126,6 +127,7 @@ export function Painel({
             </form>
           </div>
         </header>
+        <AppNav active="/painel" />
 
         <div className="hero-grid">
           <div>
