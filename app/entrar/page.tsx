@@ -7,6 +7,14 @@ function isSupabaseConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
 
+function signInErrorMessage(message: string) {
+  if (/email not confirmed/i.test(message)) {
+    return 'Confirme seu e-mail pelo link enviado antes de entrar. Se não encontrar, verifique a caixa de spam.'
+  }
+
+  return 'E-mail ou senha inválidos.'
+}
+
 async function signIn(formData: FormData) {
   'use server'
   const email = String(formData.get('email') ?? '')
@@ -15,7 +23,7 @@ async function signIn(formData: FormData) {
   const supabase = createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) redirect('/entrar?erro=' + encodeURIComponent('E-mail ou senha inválidos.'))
+  if (error) redirect('/entrar?erro=' + encodeURIComponent(signInErrorMessage(error.message)))
   redirect('/')
 }
 
@@ -42,7 +50,7 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
         <a className="brand" href="/"><span className="brand-mark">F</span><span>foco</span></a>
         <h1>Bem-vindo de volta.</h1>
         <p>Entre e escolha seu próximo passo com calma.</p>
-        {params.criado && <p className="notice" role="status">Conta criada. Agora é só entrar.</p>}
+        {params.criado && <p className="notice" role="status">Conta criada. Confira seu e-mail e confirme a conta antes de entrar.</p>}
         {params.erro && <p className="error-message" role="alert">{params.erro}</p>}
         <form action={signIn} className="auth-form">
           <label className="field">E-mail<input type="email" name="email" required autoComplete="email" /></label>
