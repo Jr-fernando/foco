@@ -16,7 +16,8 @@ export async function middleware(request: NextRequest) {
   // Isso evita crash 500 (MIDDLEWARE_INVOCATION_FAILED) em deploy sem env vars.
   if (!supabaseUrl || !supabaseAnonKey) {
     const isAuthRoute = request.nextUrl.pathname.startsWith('/entrar') ||
-      request.nextUrl.pathname.startsWith('/cadastro')
+      request.nextUrl.pathname.startsWith('/cadastro') ||
+      request.nextUrl.pathname.startsWith('/planos')
 
     if (isAuthRoute) return response
 
@@ -44,7 +45,8 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/entrar') ||
-    request.nextUrl.pathname.startsWith('/cadastro')
+    request.nextUrl.pathname.startsWith('/cadastro') ||
+    request.nextUrl.pathname.startsWith('/planos')
   const isPublicRoute = request.nextUrl.pathname.startsWith('/api/public')
 
   if (!user && !isAuthRoute && !isPublicRoute) {
@@ -65,4 +67,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)',
   ],
 }
-

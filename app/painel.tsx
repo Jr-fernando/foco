@@ -199,6 +199,20 @@ export function Painel({
             )}
           </ul>
         </section>
+
+        <section className="dashboard-lower" aria-label="Continue construindo seu ritmo">
+          <article className="moment-card">
+            <p className="eyebrow">Um lembrete para hoje</p>
+            <h2>{pending.length ? 'Uma tarefa feita ainda conta como um dia bem vivido.' : 'Você criou espaço. Agora escolha o próximo passo com calma.'}</h2>
+            <p>Não é sobre preencher todos os minutos. É sobre cuidar do que realmente merece sua atenção.</p>
+          </article>
+          <article className="pro-preview">
+            <span className="plan-badge">Foco Pro · em breve</span>
+            <h2>Quando quiser ir além.</h2>
+            <p>Histórico, lembretes e visões por projeto para transformar seu ritmo em clareza.</p>
+            <a href="/planos">Ver planos <span aria-hidden="true">→</span></a>
+          </article>
+        </section>
       </section>
     </main>
   )

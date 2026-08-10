@@ -58,6 +58,11 @@ export default async function EntrarPage({ searchParams }: { searchParams: Promi
           <button className="button button-primary" type="submit">Entrar no Foco</button>
         </form>
         <p className="auth-footer">Ainda não tem conta? <a href="/cadastro">Criar conta</a></p>
+        <aside className="auth-quote">
+          <span aria-hidden="true">✦</span>
+          <p>“Você não precisa fazer tudo. Só precisa começar pelo que importa.”</p>
+          <a href="/planos">Conheça os planos do Foco</a>
+        </aside>
       </section>
     </main>
   )

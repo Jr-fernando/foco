@@ -71,6 +71,11 @@ export default async function CadastroPage({ searchParams }: { searchParams: Pro
           <button className="button button-primary" type="submit">Criar minha conta</button>
         </form>
         <p className="auth-footer">Já tem conta? <a href="/entrar">Entrar</a></p>
+        <aside className="auth-quote">
+          <span aria-hidden="true">✦</span>
+          <p>“Constância não é perfeição. É escolher recomeçar.”</p>
+          <a href="/planos">Conheça os planos do Foco</a>
+        </aside>
       </section>
     </main>
   )
