@@ -4,10 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 const PRIORITIES = ['alta', 'media', 'baixa'] as const
+const CATEGORIES = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
 type Priority = (typeof PRIORITIES)[number]
+type Category = (typeof CATEGORIES)[number]
 
 function isPriority(value: string): value is Priority {
   return (PRIORITIES as readonly string[]).includes(value)
+}
+
+function isCategory(value: string): value is Category {
+  return (CATEGORIES as readonly string[]).includes(value)
 }
 
 // Toda Server Action revalida o usuário autenticado no servidor —
@@ -24,7 +30,8 @@ export async function createTask(formData: FormData) {
 
   const title = String(formData.get('title') ?? '').trim()
   const priorityRaw = String(formData.get('priority') ?? 'media')
-  const category = formData.get('category') ? String(formData.get('category')) : null
+  const categoryRaw = String(formData.get('category') ?? '')
+  const category = isCategory(categoryRaw) ? categoryRaw : null
 
   if (!title) return { error: 'A tarefa precisa de um título.' }
   if (title.length > 280) return { error: 'Título muito longo (máx. 280 caracteres).' }
@@ -39,7 +46,7 @@ export async function createTask(formData: FormData) {
 
   if (error) return { error: 'Não foi possível criar a tarefa. Tente de novo.' }
 
-  revalidatePath('/')
+  revalidatePath('/painel')
   return { error: null }
 }
 
@@ -60,7 +67,7 @@ export async function toggleTask(taskId: string, done: boolean) {
     await supabase.rpc('register_activity', { p_user_id: user.id })
   }
 
-  revalidatePath('/')
+  revalidatePath('/painel')
   return { error: null }
 }
 
@@ -75,6 +82,6 @@ export async function deleteTask(taskId: string) {
 
   if (error) return { error: 'Não foi possível excluir a tarefa.' }
 
-  revalidatePath('/')
+  revalidatePath('/painel')
   return { error: null }
 }

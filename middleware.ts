@@ -11,15 +11,16 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  const pathname = request.nextUrl.pathname
+  const isLandingRoute = pathname === '/'
+  const isSignInRoute = pathname.startsWith('/entrar') || pathname.startsWith('/cadastro')
+  const isPublicRoute = isLandingRoute || isSignInRoute || pathname.startsWith('/planos') || pathname.startsWith('/api/public')
+
   // Se as variáveis de ambiente não estiverem configuradas,
-  // permite acesso às rotas de auth e redireciona o resto para /entrar.
+  // mantém as páginas públicas acessíveis e evita crash 500 no deploy.
   // Isso evita crash 500 (MIDDLEWARE_INVOCATION_FAILED) em deploy sem env vars.
   if (!supabaseUrl || !supabaseAnonKey) {
-    const isAuthRoute = request.nextUrl.pathname.startsWith('/entrar') ||
-      request.nextUrl.pathname.startsWith('/cadastro') ||
-      request.nextUrl.pathname.startsWith('/planos')
-
-    if (isAuthRoute) return response
+    if (isPublicRoute) return response
 
     return NextResponse.redirect(new URL('/entrar', request.url))
   }
@@ -44,19 +45,14 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/entrar') ||
-    request.nextUrl.pathname.startsWith('/cadastro') ||
-    request.nextUrl.pathname.startsWith('/planos')
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/api/public')
-
-  if (!user && !isAuthRoute && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     const redirectUrl = new URL('/entrar', request.url)
     redirectUrl.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url))
+  if (user && isSignInRoute) {
+    return NextResponse.redirect(new URL('/painel', request.url))
   }
 
   return response

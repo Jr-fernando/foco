@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createTask, toggleTask, deleteTask } from './actions/tasks'
+import { signOut } from './actions/auth'
 
 type Task = {
   id: string
@@ -15,6 +16,7 @@ type Streak = { current_streak: number; longest_streak: number }
 type Filter = 'pendentes' | 'todas' | 'concluidas'
 
 const priorityLabel = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
+const categories = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
 
 export function Painel({
   initialTasks,
@@ -27,13 +29,17 @@ export function Painel({
 }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<Filter>('pendentes')
+  const [categoryFilter, setCategoryFilter] = useState('todas')
   const [notice, setNotice] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [updatingTask, setUpdatingTask] = useState<string | null>(null)
 
   const pending = tasks.filter((task) => !task.done)
   const done = tasks.filter((task) => task.done)
-  const visible = filter === 'pendentes' ? pending : filter === 'concluidas' ? done : tasks
+  const filteredByStatus = filter === 'pendentes' ? pending : filter === 'concluidas' ? done : tasks
+  const visible = categoryFilter === 'todas'
+    ? filteredByStatus
+    : filteredByStatus.filter((task) => task.category === categoryFilter)
   const progress = tasks.length ? Math.round((done.length / tasks.length) * 100) : 0
 
   async function handleCreate(formData: FormData) {
@@ -87,13 +93,18 @@ export function Painel({
     <main className="app-shell">
       <section className="dashboard" aria-label="Painel de tarefas">
         <header className="topbar">
-          <a className="brand" href="/" aria-label="Foco, início">
+          <a className="brand" href="/painel" aria-label="Foco, painel">
             <span className="brand-mark">F</span>
             <span>foco</span>
           </a>
-          <div className="account">
-            <span className="account-dot" aria-hidden="true" />
-            <span>{userEmail}</span>
+          <div className="account-actions">
+            <div className="account">
+              <span className="account-dot" aria-hidden="true" />
+              <span>{userEmail}</span>
+            </div>
+            <form action={signOut}>
+              <button className="signout-button" type="submit">Sair</button>
+            </form>
           </div>
         </header>
 
@@ -142,6 +153,11 @@ export function Painel({
               <option value="media">Prioridade média</option>
               <option value="baixa">Baixa prioridade</option>
             </select>
+            <label className="sr-only" htmlFor="task-category">Categoria</label>
+            <select id="task-category" name="category" defaultValue="">
+              <option value="">Sem categoria</option>
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
             <button className="button button-primary" type="submit" disabled={isCreating}>
               {isCreating ? 'Adicionando...' : 'Adicionar tarefa'}
             </button>
@@ -153,18 +169,27 @@ export function Painel({
         <section className="task-list-section" aria-labelledby="tasks-title">
           <div className="list-header">
             <h2 id="tasks-title">Suas tarefas</h2>
-            <nav className="filters" aria-label="Filtrar tarefas">
-              {(['pendentes', 'todas', 'concluidas'] as Filter[]).map((item) => (
-                <button
-                  key={item}
-                  className={filter === item ? 'filter active' : 'filter'}
-                  onClick={() => setFilter(item)}
-                  aria-pressed={filter === item}
-                >
-                  {item === 'pendentes' ? `Pendentes ${pending.length}` : item === 'todas' ? `Todas ${tasks.length}` : `Concluídas ${done.length}`}
-                </button>
-              ))}
-            </nav>
+            <div className="list-controls">
+              <nav className="filters" aria-label="Filtrar tarefas">
+                {(['pendentes', 'todas', 'concluidas'] as Filter[]).map((item) => (
+                  <button
+                    key={item}
+                    className={filter === item ? 'filter active' : 'filter'}
+                    onClick={() => setFilter(item)}
+                    aria-pressed={filter === item}
+                  >
+                    {item === 'pendentes' ? `Pendentes ${pending.length}` : item === 'todas' ? `Todas ${tasks.length}` : `Concluídas ${done.length}`}
+                  </button>
+                ))}
+              </nav>
+              <label className="sr-only" htmlFor="category-filter">Filtrar por categoria</label>
+              <select id="category-filter" className="category-filter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                <option value="todas">Todas as categorias</option>
+                {categories.filter((category) => tasks.some((task) => task.category === category)).map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <ul className="task-list">
@@ -179,6 +204,7 @@ export function Painel({
                   {task.done && '✓'}
                 </button>
                 <span className="task-title">{task.title}</span>
+                {task.category && <span className="task-category">{task.category}</span>}
                 <span className={`priority priority-${task.priority}`}>{priorityLabel[task.priority]}</span>
                 <button
                   className="delete-button"

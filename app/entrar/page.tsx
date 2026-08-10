@@ -24,7 +24,7 @@ async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) redirect('/entrar?erro=' + encodeURIComponent(signInErrorMessage(error.message)))
-  redirect('/')
+  redirect('/painel')
 }
 
 export default async function EntrarPage({ searchParams }: { searchParams: Promise<{ erro?: string; criado?: string }> }) {
