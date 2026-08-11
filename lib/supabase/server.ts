@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 // Cliente para Server Components / Server Actions / Route Handlers.
 // Lê e escreve a sessão via cookies HTTP-only — o token nunca fica
 // acessível a JavaScript no browser (mitiga roubo de sessão via XSS).
-export function createClient() {
+export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -15,7 +15,7 @@ export function createClient() {
     )
   }
 
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
 
   return createServerClient(
     supabaseUrl,

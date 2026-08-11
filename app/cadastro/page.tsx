@@ -29,7 +29,7 @@ async function signUp(formData: FormData) {
 
   if (password.length < 8) redirect('/cadastro?erro=' + encodeURIComponent('A senha precisa de pelo menos 8 caracteres.'))
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { error } = await supabase.auth.signUp({
     email,
     password,

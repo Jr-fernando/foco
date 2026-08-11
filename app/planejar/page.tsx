@@ -5,7 +5,7 @@ import { Planejador } from './planejador'
 export const dynamic = 'force-dynamic'
 
 export default async function PlanejarPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const { data: tasks } = await supabase.from('tasks').select('id,title,priority,scheduled_for,estimate_minutes,done').eq('done', false).order('created_at', { ascending: false })

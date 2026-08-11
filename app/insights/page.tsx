@@ -4,7 +4,7 @@ import { AppNav } from '../components/app-nav'
 export const dynamic = 'force-dynamic'
 
 export default async function InsightsPage() {
-  const supabase = createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return null
+  const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return null
   const { data: tasks } = await supabase.from('tasks').select('done,done_at,category,estimate_minutes,scheduled_for').order('created_at', { ascending: false })
   const list = tasks ?? []; const completed = list.filter((task) => task.done); const planned = list.filter((task) => task.scheduled_for)
   const totalMinutes = completed.reduce((sum, task) => sum + (task.estimate_minutes ?? 0), 0)

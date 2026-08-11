@@ -1,9 +1,12 @@
 /* Camada de acabamento para a experiência pública e o aplicativo. */
 :root {
-  --font-display: 'Fraunces', Georgia, serif;
   --green: var(--pine);
   --green-dark: var(--pine-dark);
 }
+
+body { font-family: var(--font-sans), Arial, sans-serif; }
+h1, h2, h3, .brand, .plan-price { font-family: var(--font-display), Georgia, serif; }
+.eyebrow { font-family: var(--font-mono), monospace; }
 
 a { text-decoration: none; }
 
@@ -81,7 +84,7 @@ a { text-decoration: none; }
 .resource-hero > p:not(.eyebrow) { max-width: 600px; margin-bottom: 28px; color: var(--muted); font-size: 1.15rem; line-height: 1.6; }
 .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 1120px; }
 .resource-card { min-height: 245px; padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: #fffdf9b8; }
-.resource-card > span { color: var(--pine); font: 500 11px/1 'DM Mono', monospace; letter-spacing: .08em; }
+.resource-card > span { color: var(--pine); font: 500 11px/1 var(--font-mono), monospace; letter-spacing: .08em; }
 .resource-card h2 { max-width: 390px; margin: 44px 0 11px; font-size: clamp(1.5rem, 2.5vw, 2rem); }
 .resource-card p { max-width: 460px; margin: 0; color: var(--muted); line-height: 1.55; }
 .resource-cta { display: flex; justify-content: space-between; gap: 30px; align-items: flex-end; max-width: 1120px; margin-top: 16px; padding: 38px; border-radius: 20px; background: var(--ink); color: white; }
@@ -89,3 +92,88 @@ a { text-decoration: none; }
 .resource-cta h2 { max-width: 470px; color: white; font-size: clamp(2rem, 4vw, 3.4rem); }
 .resource-cta .button { flex: 0 0 auto; }
 @media (max-width: 760px) { .resource-shell { padding: 0 24px 32px; } .resource-hero { padding: 86px 0 48px; } .resource-grid { grid-template-columns: 1fr; } .resource-cta { align-items: start; flex-direction: column; padding: 28px; } }
+
+/* Planejador: calendário utilizável por mouse, toque e teclado. */
+.planner-hero h1 { max-width: 720px; font-size: clamp(2.8rem, 5.4vw, 4.7rem); line-height: 1; }
+.planner-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; margin-bottom: 15px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.planner-toolbar > div { display: flex; gap: 6px; }
+.planner-toolbar button, .schedule-actions button, .outside-week button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-weight: 700; }
+.planner-toolbar .today-button { color: var(--pine-dark); }
+.planner-toolbar strong { font-family: var(--font-display); font-size: 1.15rem; text-align: center; text-transform: capitalize; }
+.planner-toolbar > span { color: var(--muted); font-size: .78rem; text-align: right; }
+.planner-notice { margin-bottom: 14px; }
+.planner-notice.error { background: #f9e6df; color: #9a3c29; }
+.quick-plan { display: grid; grid-template-columns: minmax(240px, 1fr) 170px 125px auto; gap: 10px; align-items: end; margin-bottom: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.quick-plan label { display: grid; gap: 7px; }
+.quick-plan label > span { color: var(--muted); font-size: .72rem; font-weight: 750; }
+.quick-plan input, .quick-plan select { min-height: 44px; }
+.quick-plan .button { min-height: 44px; }
+.week-board { scroll-snap-type: x proximity; scrollbar-width: thin; }
+.day-column { scroll-snap-align: start; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.day-column > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.day-column > header span { padding: 4px 7px; border-radius: 99px; background: var(--pine); color: white; font-size: .62rem; font-weight: 800; }
+.day-column.is-today { border-color: var(--pine); box-shadow: inset 0 3px 0 var(--pine); }
+.day-column.can-drop { border-style: dashed; background: #f1f6ef; }
+.day-column.can-drop:hover { border-color: var(--pine); transform: translateY(-2px); }
+.day-task-list { min-height: 160px; }
+.planned-task { cursor: grab; border-left: 3px solid #d0a62f; box-shadow: 0 2px 8px #17211e0a; }
+.planned-task:active { cursor: grabbing; }
+.planned-task.priority-alta { border-left-color: var(--coral); }
+.planned-task.priority-baixa { border-left-color: #69a784; }
+.planner-inbox > div:first-child > p:last-child { margin: 10px 0 0; color: var(--muted); font-size: .82rem; line-height: 1.5; }
+.planner-inbox .inbox-list article { cursor: grab; }
+.schedule-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.schedule-actions button { min-height: 34px; padding: 0 10px; font-size: .7rem; }
+.schedule-actions input { width: 42px; min-height: 34px; padding: 5px; color: var(--pine-dark); }
+.outside-week { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: -16px 0 32px; padding: 14px 17px; border-radius: 12px; background: #e8efe5; font-size: .8rem; }
+.outside-week button { border-color: #c8d8c9; background: transparent; color: var(--pine-dark); }
+
+@media (max-width: 900px) {
+  .quick-plan { grid-template-columns: 1fr 1fr; }
+  .quick-plan label:first-child { grid-column: 1 / -1; }
+  .planner-toolbar { grid-template-columns: 1fr auto; }
+  .planner-toolbar > strong { grid-row: 1; grid-column: 1 / -1; }
+  .planner-toolbar > span { text-align: right; }
+}
+
+@media (max-width: 600px) {
+  .planner-hero h1 { font-size: clamp(2.55rem, 13vw, 3.6rem); }
+  .quick-plan { grid-template-columns: 1fr; padding: 14px; }
+  .quick-plan label:first-child { grid-column: auto; }
+  .planner-toolbar { grid-template-columns: 1fr; }
+  .planner-toolbar > strong { grid-column: auto; grid-row: auto; text-align: left; }
+  .planner-toolbar > span { text-align: left; }
+  .week-board { grid-template-columns: repeat(7, minmax(82vw, 330px)); margin-inline: -18px; padding-inline: 18px; }
+  .day-column { min-height: 250px; }
+  .inbox-list article { align-items: flex-start; flex-direction: column; }
+  .schedule-actions { width: 100%; }
+  .schedule-actions input { margin-left: auto; }
+  .outside-week { align-items: flex-start; flex-direction: column; }
+}
+
+/* Planos e cobrança. */
+.plans-hero h1 { max-width: 780px; font-size: clamp(3.2rem, 7vw, 5.8rem); line-height: .98; text-wrap: balance; }
+.billing-toggle { display: flex; width: max-content; max-width: calc(100% - 36px); margin: 0 auto 24px; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.billing-toggle button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 750; }
+.billing-toggle button.active { background: var(--ink); color: white; box-shadow: 0 2px 8px #17211e20; }
+.billing-toggle span { margin-left: 5px; color: #9ed0a8; font-size: .68rem; }
+.price-line { display: flex; align-items: flex-end; gap: 9px; margin: 10px 0 4px; }
+.price-line strong { font-family: var(--font-display); font-size: clamp(2.25rem, 4vw, 3.2rem); line-height: 1; letter-spacing: -.055em; }
+.price-line span, .price-equivalent, .renewal-note { color: var(--muted); font-size: .73rem; }
+.price-equivalent { min-height: 18px; margin: 0 0 22px; }
+.plan-card-pro .price-line span, .plan-card-pro .price-equivalent, .plan-card-pro .renewal-note { color: #b8c8c0; }
+.plan-card form, .plan-card form .button, .plan-card > .button { width: 100%; }
+.renewal-note { display: block; margin-top: 12px; text-align: center; }
+.free-plan-strip { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: min(100%, 1060px); margin: 16px auto 28px; padding: 24px 28px; border: 1px solid var(--line); border-radius: 17px; background: #edf3e9; }
+.free-plan-strip span { display: block; color: var(--pine-dark); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.free-plan-strip strong { display: block; margin-top: 6px; font-family: var(--font-display); font-size: 1.25rem; }
+.free-plan-strip p { margin: 5px 0 0; color: var(--muted); font-size: .82rem; }
+.free-plan-strip .button { flex: 0 0 auto; }
+.billing-summary p { margin: 7px 0 0; color: var(--muted); font-size: .82rem; }
+
+@media (max-width: 700px) {
+  .plans-hero h1 { font-size: clamp(3rem, 15vw, 4.25rem); }
+  .billing-toggle button { padding: 0 12px; font-size: .8rem; }
+  .free-plan-strip { align-items: flex-start; flex-direction: column; }
+  .free-plan-strip .button { width: 100%; }
+}

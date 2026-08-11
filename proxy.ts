@@ -5,8 +5,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 // 1. Renovar a sessão do Supabase antes que o token expire
 // 2. Bloquear acesso a rotas privadas sem sessão válida
 // Isso é a segunda camada de defesa — a primeira é o RLS no banco.
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request: { headers: request.headers } })
+export async function proxy(request: NextRequest) {
+  const response = NextResponse.next({ request: { headers: request.headers } })
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isLandingRoute = pathname === '/'
   const isSignInRoute = pathname.startsWith('/entrar') || pathname.startsWith('/cadastro')
-  const isPublicRoute = isLandingRoute || isSignInRoute || pathname.startsWith('/planos') || pathname.startsWith('/recursos') || pathname.startsWith('/api/public')
+  const isPublicRoute = isLandingRoute || isSignInRoute || pathname.startsWith('/planos') || pathname.startsWith('/recursos') || pathname.startsWith('/api/public') || pathname === '/api/webhooks/stripe'
 
   // Se as variáveis de ambiente não estiverem configuradas,
   // mantém as páginas públicas acessíveis e evita crash 500 no deploy.

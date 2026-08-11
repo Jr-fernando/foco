@@ -24,7 +24,7 @@ function isCategory(value: string): value is Category {
 // Toda Server Action revalida o usuário autenticado no servidor —
 // nunca confia em um user_id vindo do formulário/client.
 async function requireUser() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error('não autenticado')
   return { supabase, user }
@@ -98,16 +98,21 @@ export async function deleteTask(taskId: string) {
 
 export async function scheduleTask(taskId: string, scheduledFor: string | null) {
   const { supabase, user } = await requireUser()
-  const safeDate = scheduledFor && /^\d{4}-\d{2}-\d{2}$/.test(scheduledFor) ? scheduledFor : null
+  if (scheduledFor && !/^\d{4}-\d{2}-\d{2}$/.test(scheduledFor)) {
+    return { error: 'A data escolhida não é válida.' }
+  }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('tasks')
-    .update({ scheduled_for: safeDate })
+    .update({ scheduled_for: scheduledFor })
     .eq('id', taskId)
     .eq('user_id', user.id)
+    .select('id')
+    .maybeSingle()
 
-  if (error) return { error: 'Não foi possível atualizar o planejamento.' }
+  if (error || !data) return { error: 'Não foi possível salvar esta tarefa no calendário.' }
 
   revalidatePath('/painel')
+  revalidatePath('/planejar')
   return { error: null }
 }
