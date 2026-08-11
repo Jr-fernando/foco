@@ -14,7 +14,7 @@ async function syncSubscription(subscription: Stripe.Subscription) {
   if (!userId) return
   const item = subscription.items.data[0]
   const periodEnd = item?.current_period_end
-  await createAdminClient().from('subscriptions').upsert({
+  const { error } = await createAdminClient().from('subscriptions').upsert({
     user_id: userId,
     stripe_customer_id: idOf(subscription.customer),
     stripe_subscription_id: subscription.id,
@@ -24,6 +24,7 @@ async function syncSubscription(subscription: Stripe.Subscription) {
     current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     cancel_at_period_end: subscription.cancel_at_period_end,
   }, { onConflict: 'user_id' })
+  if (error) throw error
 }
 
 export async function POST(request: Request) {
@@ -39,6 +40,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const admin = createAdminClient()
+    const { error: eventError } = await admin.from('stripe_webhook_events').insert({ event_id: event.id, event_type: event.type })
+    if (eventError?.code === '23505') return NextResponse.json({ received: true, duplicate: true })
+    if (eventError) throw eventError
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object
@@ -52,6 +58,7 @@ export async function POST(request: Request) {
         break
     }
   } catch {
+    await createAdminClient().from('stripe_webhook_events').delete().eq('event_id', event.id)
     return NextResponse.json({ error: 'Falha ao sincronizar assinatura' }, { status: 500 })
   }
 

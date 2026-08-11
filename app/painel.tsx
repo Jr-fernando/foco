@@ -14,6 +14,7 @@ type Task = {
   category: string | null
   scheduled_for: string | null
   estimate_minutes: number | null
+  project_id: string | null
 }
 
 type Streak = { current_streak: number; longest_streak: number }
@@ -27,10 +28,12 @@ export function Painel({
   initialTasks,
   initialStreak,
   userEmail,
+  projects,
 }: {
   initialTasks: Task[]
   initialStreak: Streak
   userEmail: string
+  projects: Array<{ id: string; name: string }>
 }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<Filter>('pendentes')
@@ -201,6 +204,7 @@ export function Painel({
               <option value="45">45 min</option>
               <option value="60">1 hora</option>
             </select>
+            {projects.length > 0 && <><label className="sr-only" htmlFor="task-project">Projeto</label><select id="task-project" name="projectId" defaultValue=""><option value="">Sem projeto</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name} · Pro</option>)}</select></>}
             <button className="button button-primary" type="submit" disabled={isCreating}>
               {isCreating ? 'Adicionando...' : 'Adicionar tarefa'}
             </button>

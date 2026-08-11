@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getUserPlan, hasPlan } from '@/lib/plans'
 
 const PRIORITIES = ['alta', 'media', 'baixa'] as const
 const CATEGORIES = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
@@ -40,10 +41,20 @@ export async function createTask(formData: FormData) {
   const scheduledFor = readDate(formData.get('scheduledFor'))
   const estimateRaw = Number(formData.get('estimateMinutes'))
   const estimateMinutes = Number.isInteger(estimateRaw) && estimateRaw >= 5 && estimateRaw <= 480 ? estimateRaw : null
+  const projectRaw = String(formData.get('projectId') ?? '')
+  let projectId: string | null = null
 
   if (!title) return { error: 'A tarefa precisa de um título.' }
   if (title.length > 280) return { error: 'Título muito longo (máx. 280 caracteres).' }
   const priority = isPriority(priorityRaw) ? priorityRaw : 'media'
+
+  if (projectRaw) {
+    const plan = await getUserPlan(supabase, user.id)
+    if (!hasPlan(plan, 'pro')) return { error: 'Projetos fazem parte do plano Pro.' }
+    const { data: project } = await supabase.from('projects').select('id').eq('id', projectRaw).eq('user_id', user.id).maybeSingle()
+    if (!project) return { error: 'Escolha um projeto válido.' }
+    projectId = project.id
+  }
 
   const { data, error } = await supabase.from('tasks').insert({
     user_id: user.id,
@@ -52,6 +63,7 @@ export async function createTask(formData: FormData) {
     category,
     scheduled_for: scheduledFor,
     estimate_minutes: estimateMinutes,
+    project_id: projectId,
   }).select('*').single()
 
   if (error) return { error: 'Não foi possível criar a tarefa. Tente de novo.' }
