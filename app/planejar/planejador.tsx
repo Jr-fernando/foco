@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { createTask, scheduleTask } from '../actions/tasks'
 
 type Task = { id: string; title: string; priority: string; scheduled_for: string | null; estimate_minutes: number | null; done: boolean }
@@ -26,6 +26,8 @@ export function Planejador({ initialTasks }: { initialTasks: Task[] }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()))
+  const [dailyCapacity, setDailyCapacity] = useState(360)
+  const titleInput = useRef<HTMLInputElement>(null)
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [dragging, setDragging] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -38,6 +40,21 @@ export function Planejador({ initialTasks }: { initialTasks: Task[] }) {
   const totalMinutes = weekTasks.reduce((sum, task) => sum + (task.estimate_minutes ?? 0), 0)
   const selectedTasks = tasks.filter((task) => task.scheduled_for === selectedDate)
   const selectedMinutes = selectedTasks.reduce((sum, task) => sum + (task.estimate_minutes ?? 0), 0)
+  const capacityPercent = Math.min(100, Math.round((selectedMinutes / dailyCapacity) * 100))
+  const selectedIndex = dates.indexOf(selectedDate)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement
+      if (target.matches('input, select, textarea, button')) return
+      if (event.key.toLowerCase() === 'n') { event.preventDefault(); titleInput.current?.focus() }
+      if (event.key.toLowerCase() === 't') { event.preventDefault(); setWeekStart(startOfWeek(new Date())); setSelectedDate(toDateKey(new Date())) }
+      if (event.key === 'ArrowLeft' && selectedIndex > 0) setSelectedDate(dates[selectedIndex - 1])
+      if (event.key === 'ArrowRight' && selectedIndex < dates.length - 1) setSelectedDate(dates[selectedIndex + 1])
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [dates, selectedIndex])
 
   function changeWeek(amount: number) {
     setWeekStart((current) => {
@@ -85,8 +102,9 @@ export function Planejador({ initialTasks }: { initialTasks: Task[] }) {
     <section className="secondary-hero planner-hero"><p className="eyebrow">Planejamento semanal</p><h1>Coloque cada coisa no seu lugar.</h1><p>Arraste tarefas para os dias no computador ou use os botões rápidos no celular. Tudo é salvo automaticamente.</p></section>
     <section className="planner-toolbar" aria-label="Controles do calendário"><div><button type="button" onClick={() => changeWeek(-1)} aria-label="Semana anterior">←</button><button type="button" className="today-button" onClick={goToday}>Hoje</button><button type="button" onClick={() => changeWeek(1)} aria-label="Próxima semana">→</button></div><strong>{rangeFormatter.format(fromDateKey(dates[0]))} — {rangeFormatter.format(fromDateKey(dates[6]))}</strong><span>{weekTasks.length} tarefas · {totalMinutes} min</span></section>
     {notice && <p className={notice.type === 'error' ? 'notice planner-notice error' : 'notice planner-notice'} role="status">{notice.text}</p>}
-    <form className="quick-plan" action={quickCreate}><label><span>O que você quer fazer?</span><input name="title" required maxLength={280} placeholder="Ex.: preparar apresentação" /></label><label><span>Dia selecionado</span><input name="scheduledFor" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /></label><label><span>Duração</span><select name="estimateMinutes" defaultValue="30"><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hora</option><option value="90">1h30</option></select></label><input type="hidden" name="priority" value="media" /><button className="button button-primary" disabled={isPending}>Adicionar em {weekdayFormatter.format(fromDateKey(selectedDate))}</button></form>
+    <form className="quick-plan" action={quickCreate}><label><span>O que você quer fazer? <kbd>N</kbd></span><input ref={titleInput} name="title" required maxLength={280} placeholder="Ex.: preparar apresentação" /></label><label><span>Dia selecionado</span><input name="scheduledFor" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /></label><label><span>Duração</span><select name="estimateMinutes" defaultValue="30"><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hora</option><option value="90">1h30</option></select></label><label><span>Prioridade</span><select name="priority" defaultValue="media"><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select></label><button className="button button-primary" disabled={isPending}>Adicionar em {weekdayFormatter.format(fromDateKey(selectedDate))}</button></form>
     <section className="selected-day-summary" aria-live="polite"><div><span>Dia em foco</span><strong>{formatter.format(fromDateKey(selectedDate))}</strong></div><p>{selectedTasks.length ? `${selectedTasks.length} tarefa${selectedTasks.length > 1 ? 's' : ''} · ${selectedMinutes || 'sem tempo estimado'}${selectedMinutes ? ' min planejados' : ''}` : 'Dia livre — clique em adicionar para reservar o primeiro passo.'}</p><div className="day-shortcuts">{dates.map((date) => <button type="button" key={date} className={date === selectedDate ? 'active' : ''} onClick={() => setSelectedDate(date)} aria-label={`Selecionar ${formatter.format(fromDateKey(date))}`}>{narrowWeekdayFormatter.format(fromDateKey(date))}<small>{fromDateKey(date).getDate()}</small></button>)}</div></section>
+    <section className="planning-health" aria-label="Equilíbrio do planejamento"><div><p className="eyebrow">Carga realista</p><strong>{selectedMinutes ? `${Math.floor(selectedMinutes / 60)}h ${selectedMinutes % 60 ? `${selectedMinutes % 60}min` : ''}` : '0 min'} de <select aria-label="Capacidade diária" value={dailyCapacity} onChange={(event) => setDailyCapacity(Number(event.target.value))}><option value="240">4h</option><option value="360">6h</option><option value="480">8h</option></select></strong><span>{capacityPercent < 75 ? 'Há espaço para imprevistos.' : capacityPercent <= 100 ? 'Dia bem preenchido. Proteja suas pausas.' : 'Carga acima do limite. Considere mover uma tarefa.'}</span></div><div className="capacity-meter"><i style={{ width: `${capacityPercent}%` }} /><span>{capacityPercent}%</span></div><div className="planner-shortcuts"><span>Atalhos no PC</span><kbd>←</kbd><kbd>→</kbd><small>dias</small><kbd>T</kbd><small>hoje</small></div></section>
     <section className="week-board" aria-label="Calendário semanal">{dates.map((date) => { const dayTasks = tasks.filter((task) => task.scheduled_for === date); const selected = date === selectedDate; return <article key={date} className={`day-column ${date === today ? 'is-today' : ''} ${selected ? 'is-selected' : ''} ${dragging ? 'can-drop' : ''}`} onClick={() => setSelectedDate(date)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/task-id'); if (id) move(id, date); setSelectedDate(date); setDragging(null) }}><header><button type="button" className="day-select" onClick={() => setSelectedDate(date)} aria-pressed={selected}><span>{formatter.format(fromDateKey(date))}</span><small>{dayTasks.length ? `${dayTasks.length} tarefa${dayTasks.length > 1 ? 's' : ''}` : 'Livre'}</small></button><div>{date === today && <span>Hoje</span>}{selected && <span className="selected-pill">Selecionado</span>}</div></header><div className="day-task-list">{dayTasks.map((task) => <article key={task.id} className={`planned-task priority-${task.priority}`} draggable onDragStart={(event) => { event.dataTransfer.setData('text/task-id', task.id); setDragging(task.id) }} onDragEnd={() => setDragging(null)}><strong>{task.title}</strong><span>{task.estimate_minutes ? `${task.estimate_minutes} min` : 'Sem duração'}</span><button type="button" disabled={isPending} onClick={(event) => { event.stopPropagation(); move(task.id, null) }}>Retirar</button></article>)}{!dayTasks.length && <p className="day-empty">Clique para selecionar este dia</p>}</div></article> })}</section>
     <section className="inbox-card planner-inbox"><div><p className="eyebrow">Caixa de entrada</p><h2>Tarefas sem dia</h2><p>Arraste para o calendário ou escolha uma data.</p></div><div className="inbox-list">{unscheduled.map((task) => <article key={task.id} draggable onDragStart={(event) => { event.dataTransfer.setData('text/task-id', task.id); setDragging(task.id) }} onDragEnd={() => setDragging(null)}><div><strong>{task.title}</strong><span>{task.estimate_minutes ? `${task.estimate_minutes} min` : 'Sem estimativa'}</span></div><div className="schedule-actions"><button type="button" onClick={() => move(task.id, today)}>Hoje</button><button type="button" onClick={() => move(task.id, dates[1])}>Amanhã</button><input aria-label={`Escolher data para ${task.title}`} type="date" onChange={(event) => event.target.value && move(task.id, event.target.value)} /></div></article>)}{!unscheduled.length && <p className="day-empty">Tudo já tem um lugar na sua semana.</p>}</div></section>
     {outsideWeek.length > 0 && <section className="outside-week"><strong>{outsideWeek.length} tarefa{outsideWeek.length > 1 ? 's' : ''} em outras semanas</strong><button type="button" onClick={() => setWeekStart(startOfWeek(fromDateKey(outsideWeek[0].scheduled_for!)))}>Ver próxima tarefa</button></section>}
