@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { createTask, toggleTask, deleteTask, scheduleTask } from './actions/tasks'
 import { signOut } from './actions/auth'
 import { FocusTimer } from './focus-timer'
 import { AppNav } from './components/app-nav'
+import { PlanBadge } from './components/plan-badge'
+import type { ProductPlan } from '@/lib/plans'
 
 type Task = {
   id: string
@@ -29,11 +32,13 @@ export function Painel({
   initialStreak,
   userEmail,
   projects,
+  currentPlan,
 }: {
   initialTasks: Task[]
   initialStreak: Streak
   userEmail: string
   projects: Array<{ id: string; name: string }>
+  currentPlan: ProductPlan
 }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<Filter>('pendentes')
@@ -42,14 +47,32 @@ export function Painel({
   const [isCreating, setIsCreating] = useState(false)
   const [updatingTask, setUpdatingTask] = useState<string | null>(null)
 
-  const pending = tasks.filter((task) => !task.done)
-  const done = tasks.filter((task) => task.done)
-  const todayTasks = pending.filter((task) => task.scheduled_for === today)
+  const summary = useMemo(() => {
+    const pending: Task[] = []
+    const done: Task[] = []
+    const todayTasks: Task[] = []
+    const todayDone: Task[] = []
+    let todayMinutes = 0
+    let inbox = 0
+    let urgent = 0
+    for (const task of tasks) {
+      if (task.done) done.push(task); else pending.push(task)
+      if (!task.scheduled_for && !task.done) inbox += 1
+      if (task.priority === 'alta' && !task.done) urgent += 1
+      if (task.scheduled_for === today) {
+        todayMinutes += task.estimate_minutes ?? 0
+        if (task.done) todayDone.push(task); else todayTasks.push(task)
+      }
+    }
+    return { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent }
+  }, [tasks])
+  const { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent } = summary
   const filteredByStatus = filter === 'pendentes' ? pending : filter === 'concluidas' ? done : tasks
   const visible = categoryFilter === 'todas'
     ? filteredByStatus
     : filteredByStatus.filter((task) => task.category === categoryFilter)
-  const progress = tasks.length ? Math.round((done.length / tasks.length) * 100) : 0
+  const todayTotal = todayTasks.length + todayDone.length
+  const progress = todayTotal ? Math.round((todayDone.length / todayTotal) * 100) : 0
 
   async function handleCreate(formData: FormData) {
     setIsCreating(true)
@@ -135,8 +158,9 @@ export function Painel({
         <div className="hero-grid">
           <div>
             <p className="eyebrow">Seu espaço de clareza</p>
-            <h1>Um passo de cada vez.</h1>
+            <div className="dashboard-title"><h1>Um passo de cada vez.</h1><PlanBadge plan={currentPlan} /></div>
             <p className="hero-copy">Escolha o que importa agora. O resto pode esperar.</p>
+            <div className="hero-actions"><a className="button button-primary" href="#new-task-title">Adicionar tarefa</a><Link className="button button-soft" href="/planejar">Planejar semana</Link></div>
           </div>
           <aside className="streak-card" aria-label="Sequência de dias ativos">
             <span className="streak-icon" aria-hidden="true">↗</span>
@@ -154,12 +178,14 @@ export function Painel({
               <span className="eyebrow">Hoje</span>
               <strong>{progress}% concluído</strong>
             </div>
-            <span>{done.length} de {tasks.length} tarefas</span>
+            <span>{todayDone.length} de {todayTotal} tarefas de hoje</span>
           </div>
           <div className="progress-track" aria-hidden="true">
             <div className="progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </section>
+
+        <section className="dashboard-summary" aria-label="Resumo rápido"><article><span>Tempo planejado</span><strong>{todayMinutes ? `${Math.floor(todayMinutes / 60)}h${todayMinutes % 60 ? ` ${todayMinutes % 60}min` : ''}` : 'Livre'}</strong><small>para hoje</small></article><article><span>Caixa de entrada</span><strong>{inbox}</strong><small>{inbox === 1 ? 'tarefa sem data' : 'tarefas sem data'}</small></article><article><span>Prioridade alta</span><strong>{urgent}</strong><small>{urgent ? 'merecem decisão' : 'tudo sob controle'}</small></article><article className="summary-next"><span>Próxima ação</span><strong>{todayTasks[0]?.title ?? pending[0]?.title ?? 'Respire e escolha com calma'}</strong><Link href={todayTasks.length ? '/foco' : '/planejar'}>{todayTasks.length ? 'Entrar em foco' : 'Organizar agora'} →</Link></article></section>
 
         <section className="daily-focus-grid" aria-label="Planejamento de hoje">
           <article className="today-card">
@@ -282,11 +308,10 @@ export function Painel({
             <h2>{pending.length ? 'Uma tarefa feita ainda conta como um dia bem vivido.' : 'Você criou espaço. Agora escolha o próximo passo com calma.'}</h2>
             <p>Não é sobre preencher todos os minutos. É sobre cuidar do que realmente merece sua atenção.</p>
           </article>
-          <article className="pro-preview">
-            <span className="plan-badge">Foco Pro · em breve</span>
-            <h2>Quando quiser ir além.</h2>
-            <p>Histórico, lembretes e visões por projeto para transformar seu ritmo em clareza.</p>
-            <a href="/planos">Ver planos <span aria-hidden="true">→</span></a>
+          <article className="pro-preview dashboard-explore">
+            <span className="plan-badge">Explore o Foco</span>
+            <h2>Mais clareza, menos troca de contexto.</h2>
+            <div className="explore-links"><Link href="/rotinas"><strong>Rotinas</strong><span>Construa consistência →</span></Link><Link href="/insights"><strong>Insights</strong><span>Entenda seu ritmo →</span></Link><Link href="/projetos"><strong>Projetos</strong><span>Conecte os próximos passos →</span></Link></div>
           </article>
         </section>
       </section>

@@ -23,6 +23,7 @@ export default async function PainelPage() {
       initialStreak={streak ?? { current_streak: 0, longest_streak: 0 }}
       userEmail={user.email ?? ''}
       projects={projects ?? []}
+      currentPlan={plan}
     />
   )
 }
