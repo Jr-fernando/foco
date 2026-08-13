@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createTask, toggleTask, deleteTask, scheduleTask } from './actions/tasks'
 import { signOut } from './actions/auth'
@@ -26,6 +26,12 @@ type Filter = 'pendentes' | 'todas' | 'concluidas'
 const priorityLabel = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const categories = ['Trabalho', 'Pessoal', 'Rotina', 'Ideias'] as const
 const today = new Date().toISOString().slice(0, 10)
+const todayLabel = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${today}T12:00:00`))
+const moods = [{ value: 'leve', icon: '☀', label: 'Leve' }, { value: 'bem', icon: '◡', label: 'Bem' }, { value: 'neutro', icon: '—', label: 'Neutro' }, { value: 'cansado', icon: '☾', label: 'Cansado' }] as const
+
+function MobileTaskGroup({ title, tone, tasks, updatingTask, onToggle }: { title: string; tone: string; tasks: Task[]; updatingTask: string | null; onToggle: (id: string, current: boolean) => void }) {
+  return <details className={`mobile-task-group ${tone}`} open={title === 'Hoje'}><summary><span className="group-symbol" aria-hidden="true" /><strong>{title}</strong><small>{tasks.length}</small><i aria-hidden="true">›</i></summary><div>{tasks.length ? tasks.slice(0, 5).map((task) => <article key={task.id}><button type="button" className="check-button" onClick={() => onToggle(task.id, task.done)} disabled={updatingTask === task.id} aria-label={`Concluir ${task.title}`} /><span>{task.title}</span>{task.estimate_minutes ? <small>{task.estimate_minutes} min</small> : null}</article>) : <p>Nada por aqui. Seu ritmo está em dia.</p>}</div></details>
+}
 
 export function Painel({
   initialTasks,
@@ -46,6 +52,16 @@ export function Painel({
   const [notice, setNotice] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [updatingTask, setUpdatingTask] = useState<string | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [mood, setMood] = useState('')
+  const formRef = useRef<HTMLFormElement>(null)
+  const composerRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`foco-mood-${today}`) ?? ''
+    const frame = requestAnimationFrame(() => setMood(saved))
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   const summary = useMemo(() => {
     const pending: Task[] = []
@@ -55,18 +71,20 @@ export function Painel({
     let todayMinutes = 0
     let inbox = 0
     let urgent = 0
+    const overdue: Task[] = []
     for (const task of tasks) {
       if (task.done) done.push(task); else pending.push(task)
       if (!task.scheduled_for && !task.done) inbox += 1
       if (task.priority === 'alta' && !task.done) urgent += 1
+      if (task.scheduled_for && task.scheduled_for < today && !task.done) overdue.push(task)
       if (task.scheduled_for === today) {
         todayMinutes += task.estimate_minutes ?? 0
         if (task.done) todayDone.push(task); else todayTasks.push(task)
       }
     }
-    return { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent }
+    return { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent, overdue }
   }, [tasks])
-  const { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent } = summary
+  const { pending, done, todayTasks, todayDone, todayMinutes, inbox, urgent, overdue } = summary
   const filteredByStatus = filter === 'pendentes' ? pending : filter === 'concluidas' ? done : tasks
   const visible = categoryFilter === 'todas'
     ? filteredByStatus
@@ -85,8 +103,8 @@ export function Painel({
       return
     }
 
-    const form = document.querySelector<HTMLFormElement>('[data-task-form]')
-    form?.reset()
+    formRef.current?.reset()
+    setComposerOpen(false)
     if (result.task) setTasks((previous) => [result.task as Task, ...previous])
     setNotice('Tarefa adicionada. Continue no seu ritmo.')
   }
@@ -135,6 +153,16 @@ export function Painel({
     }
   }
 
+  function openComposer() {
+    setComposerOpen(true)
+    requestAnimationFrame(() => { composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); window.setTimeout(() => formRef.current?.querySelector('input')?.focus(), 350) })
+  }
+
+  function chooseMood(value: string) {
+    setMood(value)
+    localStorage.setItem(`foco-mood-${today}`, value)
+  }
+
   return (
     <main className="app-shell">
       <section className="dashboard" aria-label="Painel de tarefas">
@@ -155,12 +183,14 @@ export function Painel({
         </header>
         <AppNav active="/painel" />
 
+        <section className="mobile-home-head"><div><span>{todayLabel}</span><strong>Seu dia, no seu ritmo.</strong></div><Link href="/ajustes" aria-label="Abrir perfil"><span>{userEmail.slice(0, 1).toUpperCase()}</span></Link></section>
+
         <div className="hero-grid">
           <div>
             <p className="eyebrow">Seu espaço de clareza</p>
             <div className="dashboard-title"><h1>Um passo de cada vez.</h1><PlanBadge plan={currentPlan} /></div>
             <p className="hero-copy">Escolha o que importa agora. O resto pode esperar.</p>
-            <div className="hero-actions"><a className="button button-primary" href="#new-task-title">Adicionar tarefa</a><Link className="button button-soft" href="/planejar">Planejar semana</Link></div>
+            <div className="hero-actions"><button type="button" className="button button-primary" onClick={openComposer}>Adicionar tarefa</button><Link className="button button-soft" href="/planejar">Planejar semana</Link></div>
           </div>
           <aside className="streak-card" aria-label="Sequência de dias ativos">
             <span className="streak-icon" aria-hidden="true">↗</span>
@@ -187,6 +217,10 @@ export function Painel({
 
         <section className="dashboard-summary" aria-label="Resumo rápido"><article><span>Tempo planejado</span><strong>{todayMinutes ? `${Math.floor(todayMinutes / 60)}h${todayMinutes % 60 ? ` ${todayMinutes % 60}min` : ''}` : 'Livre'}</strong><small>para hoje</small></article><article><span>Caixa de entrada</span><strong>{inbox}</strong><small>{inbox === 1 ? 'tarefa sem data' : 'tarefas sem data'}</small></article><article><span>Prioridade alta</span><strong>{urgent}</strong><small>{urgent ? 'merecem decisão' : 'tudo sob controle'}</small></article><article className="summary-next"><span>Próxima ação</span><strong>{todayTasks[0]?.title ?? pending[0]?.title ?? 'Respire e escolha com calma'}</strong><Link href={todayTasks.length ? '/foco' : '/planejar'}>{todayTasks.length ? 'Entrar em foco' : 'Organizar agora'} →</Link></article></section>
 
+        <section className="home-widgets" aria-label="Atalhos do Foco"><Link className="widget-plan" href="/planejar"><i aria-hidden="true">▦</i><div><span>Planejamento</span><strong>Organize sua semana</strong></div><small>→</small></Link><Link className="widget-focus" href="/foco"><i aria-hidden="true">◎</i><div><span>Modo Foco</span><strong>Proteja sua atenção</strong></div><small>→</small></Link><Link className="widget-routine" href="/rotinas"><i aria-hidden="true">↻</i><div><span>Rotinas</span><strong>Construa constância</strong></div><small>→</small></Link><Link className="widget-insights" href="/insights"><i aria-hidden="true">↗</i><div><span>Insights</span><strong>Entenda seu ritmo</strong></div><small>→</small></Link></section>
+
+        <section className="mobile-task-overview" aria-label="Visão rápida das tarefas"><div className="mobile-section-title"><div><p className="eyebrow">Tarefas</p><h2>O que pede atenção</h2></div><Link href="/planejar">Ver semana</Link></div><div className="mobile-category-chips" role="group" aria-label="Filtrar por categoria"><button type="button" className={categoryFilter === 'todas' ? 'active' : ''} onClick={() => setCategoryFilter('todas')}>Todas <span>{pending.length}</span></button>{categories.map((category) => <button type="button" key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>{category}</button>)}</div><MobileTaskGroup title="Atrasadas" tone="overdue" tasks={overdue.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} /><MobileTaskGroup title="Hoje" tone="today" tasks={todayTasks.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} /><MobileTaskGroup title="Sem data" tone="inbox" tasks={pending.filter((task) => !task.scheduled_for && (categoryFilter === 'todas' || task.category === categoryFilter))} updatingTask={updatingTask} onToggle={handleToggle} /></section>
+
         <section className="daily-focus-grid" aria-label="Planejamento de hoje">
           <article className="today-card">
             <div className="today-card-heading"><div><p className="eyebrow">Meu dia</p><h2>O que merece sua atenção?</h2></div><span>{todayTasks.length}/3</span></div>
@@ -197,14 +231,15 @@ export function Painel({
           <FocusTimer />
         </section>
 
-        <section className="task-composer" aria-labelledby="new-task-title">
+        <section ref={composerRef} className={`task-composer${composerOpen ? ' mobile-open' : ''}`} aria-labelledby="new-task-title">
           <div className="section-title">
             <div>
               <p className="eyebrow">Próximo passo</p>
               <h2 id="new-task-title">No que você quer focar?</h2>
             </div>
+            <button type="button" className="mobile-composer-close" onClick={() => setComposerOpen(false)} aria-label="Fechar">×</button>
           </div>
-          <form action={handleCreate} data-task-form className="task-form">
+          <form ref={formRef} action={handleCreate} data-task-form className="task-form">
             <label className="sr-only" htmlFor="task-title">Nova tarefa</label>
             <input id="task-title" type="text" name="title" placeholder="Ex.: responder propostas pendentes" required maxLength={280} />
             <label className="sr-only" htmlFor="task-priority">Prioridade</label>
@@ -314,6 +349,8 @@ export function Painel({
             <div className="explore-links"><Link href="/rotinas"><strong>Rotinas</strong><span>Construa consistência →</span></Link><Link href="/insights"><strong>Insights</strong><span>Entenda seu ritmo →</span></Link><Link href="/projetos"><strong>Projetos</strong><span>Conecte os próximos passos →</span></Link></div>
           </article>
         </section>
+        <section className="mood-card"><div><p className="eyebrow">Check-in rápido</p><h2>Como está sua energia agora?</h2><span>Isso fica somente neste dispositivo.</span></div><div>{moods.map((item) => <button type="button" key={item.value} className={mood === item.value ? 'active' : ''} onClick={() => chooseMood(item.value)} aria-pressed={mood === item.value}><i aria-hidden="true">{item.icon}</i><span>{item.label}</span></button>)}</div></section>
+        <button type="button" className="mobile-fab" onClick={openComposer} aria-label="Adicionar nova tarefa">+</button>
       </section>
     </main>
   )
