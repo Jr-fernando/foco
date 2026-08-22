@@ -24,6 +24,7 @@ export default async function PainelPage() {
       userEmail={user.email ?? ''}
       projects={projects ?? []}
       currentPlan={plan}
+      userId={user.id}
     />
   )
 }

@@ -42,6 +42,7 @@ export async function createTask(formData: FormData) {
   const estimateRaw = Number(formData.get('estimateMinutes'))
   const estimateMinutes = Number.isInteger(estimateRaw) && estimateRaw >= 5 && estimateRaw <= 480 ? estimateRaw : null
   const projectRaw = String(formData.get('projectId') ?? '')
+  const kind = String(formData.get('kind') ?? '') === 'idea' ? 'idea' : 'task'
   let projectId: string | null = null
 
   if (!title) return { error: 'A tarefa precisa de um título.' }
@@ -64,6 +65,7 @@ export async function createTask(formData: FormData) {
     scheduled_for: scheduledFor,
     estimate_minutes: estimateMinutes,
     project_id: projectId,
+    kind,
   }).select('*').single()
 
   if (error) return { error: 'Não foi possível criar a tarefa. Tente de novo.' }
@@ -96,6 +98,8 @@ export async function toggleTask(taskId: string, done: boolean) {
 export async function deleteTask(taskId: string) {
   const { supabase, user } = await requireUser()
 
+  const { data: attachments } = await supabase.from('task_attachments').select('storage_path').eq('task_id', taskId).eq('user_id', user.id)
+
   const { error } = await supabase
     .from('tasks')
     .delete()
@@ -103,6 +107,9 @@ export async function deleteTask(taskId: string) {
     .eq('user_id', user.id)
 
   if (error) return { error: 'Não foi possível excluir a tarefa.' }
+
+  const paths = (attachments ?? []).map((attachment) => attachment.storage_path)
+  if (paths.length) await supabase.storage.from('task-attachments').remove(paths)
 
   revalidatePath('/painel')
   return { error: null }

@@ -7,6 +7,7 @@ import { signOut } from './actions/auth'
 import { FocusTimer } from './focus-timer'
 import { AppNav } from './components/app-nav'
 import { PlanBadge } from './components/plan-badge'
+import { TaskDetailSheet } from './components/task-detail-sheet'
 import type { ProductPlan } from '@/lib/plans'
 
 type Task = {
@@ -18,6 +19,7 @@ type Task = {
   scheduled_for: string | null
   estimate_minutes: number | null
   project_id: string | null
+  kind: 'task' | 'idea'
 }
 
 type Streak = { current_streak: number; longest_streak: number }
@@ -29,8 +31,8 @@ const today = new Date().toISOString().slice(0, 10)
 const todayLabel = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${today}T12:00:00`))
 const moods = [{ value: 'leve', icon: '☀', label: 'Leve' }, { value: 'bem', icon: '◡', label: 'Bem' }, { value: 'neutro', icon: '—', label: 'Neutro' }, { value: 'cansado', icon: '☾', label: 'Cansado' }] as const
 
-function MobileTaskGroup({ title, tone, tasks, updatingTask, onToggle }: { title: string; tone: string; tasks: Task[]; updatingTask: string | null; onToggle: (id: string, current: boolean) => void }) {
-  return <details className={`mobile-task-group ${tone}`} open={title === 'Hoje'}><summary><span className="group-symbol" aria-hidden="true" /><strong>{title}</strong><small>{tasks.length}</small><i aria-hidden="true">›</i></summary><div>{tasks.length ? tasks.slice(0, 5).map((task) => <article key={task.id}><button type="button" className="check-button" onClick={() => onToggle(task.id, task.done)} disabled={updatingTask === task.id} aria-label={`Concluir ${task.title}`} /><span>{task.title}</span>{task.estimate_minutes ? <small>{task.estimate_minutes} min</small> : null}</article>) : <p>Nada por aqui. Seu ritmo está em dia.</p>}</div></details>
+function MobileTaskGroup({ title, tone, tasks, updatingTask, onToggle, onOpen }: { title: string; tone: string; tasks: Task[]; updatingTask: string | null; onToggle: (id: string, current: boolean) => void; onOpen: (task: Task) => void }) {
+  return <details className={`mobile-task-group ${tone}`} open={title === 'Hoje'}><summary><span className="group-symbol" aria-hidden="true" /><strong>{title}</strong><small>{tasks.length}</small><i aria-hidden="true">›</i></summary><div>{tasks.length ? tasks.slice(0, 5).map((task) => <article key={task.id}><button type="button" className="check-button" onClick={() => onToggle(task.id, task.done)} disabled={updatingTask === task.id} aria-label={`Concluir ${task.title}`} /><button type="button" className="mobile-task-title" onClick={() => onOpen(task)}>{task.kind === 'idea' ? <i aria-hidden="true">✦</i> : null}{task.title}</button>{task.estimate_minutes ? <small>{task.estimate_minutes} min</small> : null}</article>) : <p>Nada por aqui. Seu ritmo está em dia.</p>}</div></details>
 }
 
 export function Painel({
@@ -39,12 +41,14 @@ export function Painel({
   userEmail,
   projects,
   currentPlan,
+  userId,
 }: {
   initialTasks: Task[]
   initialStreak: Streak
   userEmail: string
   projects: Array<{ id: string; name: string }>
   currentPlan: ProductPlan
+  userId: string
 }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<Filter>('pendentes')
@@ -54,6 +58,8 @@ export function Painel({
   const [updatingTask, setUpdatingTask] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const [mood, setMood] = useState('')
+  const [captureKind, setCaptureKind] = useState<'task' | 'idea'>('task')
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const composerRef = useRef<HTMLElement>(null)
 
@@ -61,6 +67,10 @@ export function Painel({
     const saved = localStorage.getItem(`foco-mood-${today}`) ?? ''
     const frame = requestAnimationFrame(() => setMood(saved))
     return () => cancelAnimationFrame(frame)
+  }, [])
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('capture') === '1') openComposer()
   }, [])
 
   const summary = useMemo(() => {
@@ -105,8 +115,12 @@ export function Painel({
 
     formRef.current?.reset()
     setComposerOpen(false)
-    if (result.task) setTasks((previous) => [result.task as Task, ...previous])
-    setNotice('Tarefa adicionada. Continue no seu ritmo.')
+    if (result.task) {
+      const created = result.task as Task
+      setTasks((previous) => [created, ...previous])
+      if (String(formData.get('intent')) === 'details') setSelectedTask(created)
+    }
+    setNotice(captureKind === 'idea' ? 'Ideia guardada na sua caixa de entrada.' : 'Tarefa adicionada. Continue no seu ritmo.')
   }
 
   async function handleToggle(id: string, current: boolean) {
@@ -190,7 +204,7 @@ export function Painel({
             <p className="eyebrow">Seu espaço de clareza</p>
             <div className="dashboard-title"><h1>Um passo de cada vez.</h1><PlanBadge plan={currentPlan} /></div>
             <p className="hero-copy">Escolha o que importa agora. O resto pode esperar.</p>
-            <div className="hero-actions"><button type="button" className="button button-primary" onClick={openComposer}>Adicionar tarefa</button><Link className="button button-soft" href="/planejar">Planejar semana</Link></div>
+            <div className="hero-actions"><button type="button" className="button button-primary" onClick={openComposer}>Capturar agora</button><Link className="button button-soft" href="/planejar">Planejar semana</Link></div>
           </div>
           <aside className="streak-card" aria-label="Sequência de dias ativos">
             <span className="streak-icon" aria-hidden="true">↗</span>
@@ -201,6 +215,18 @@ export function Painel({
             <small>melhor: {initialStreak.longest_streak}</small>
           </aside>
         </div>
+
+        <section ref={composerRef} className={`task-composer capture-studio${composerOpen ? ' mobile-open' : ''}`} aria-labelledby="new-task-title">
+          <div className="capture-intro"><div><p className="eyebrow">Caixa de entrada</p><h2 id="new-task-title">Tire da cabeça. Organize depois.</h2><span>Registre em segundos e abra os detalhes para incluir passos, notas e arquivos.</span></div><button type="button" className="mobile-composer-close" onClick={() => setComposerOpen(false)} aria-label="Fechar">×</button></div>
+          <div className="capture-kind" role="group" aria-label="O que você quer registrar?"><button type="button" className={captureKind === 'task' ? 'active' : ''} onClick={() => setCaptureKind('task')}>✓ Tarefa</button><button type="button" className={captureKind === 'idea' ? 'active' : ''} onClick={() => setCaptureKind('idea')}>✦ Ideia</button></div>
+          <form ref={formRef} action={handleCreate} data-task-form className="task-form capture-form">
+            <input type="hidden" name="kind" value={captureKind} />
+            <label className="sr-only" htmlFor="task-title">{captureKind === 'idea' ? 'Nova ideia' : 'Nova tarefa'}</label>
+            <input id="task-title" type="text" name="title" placeholder={captureKind === 'idea' ? 'Anote a ideia antes que ela escape...' : 'O que precisa ser feito?'} required maxLength={280} autoComplete="off" />
+            <div className="capture-options"><label><span>Quando</span><select key={`date-${captureKind}`} name="scheduledFor" defaultValue={captureKind === 'idea' ? '' : today}><option value={today}>Hoje</option><option value="">Sem data</option></select></label><label><span>Prioridade</span><select name="priority" defaultValue="media"><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select></label><label><span>Categoria</span><select key={`category-${captureKind}`} name="category" defaultValue={captureKind === 'idea' ? 'Ideias' : ''}><option value="">Sem categoria</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><label><span>Duração</span><select name="estimateMinutes" defaultValue="25"><option value="15">15 min</option><option value="25">25 min</option><option value="45">45 min</option><option value="60">1 hora</option></select></label>{projects.length > 0 && <label><span>Projeto</span><select name="projectId" defaultValue=""><option value="">Sem projeto</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}</div>
+            <div className="capture-actions"><button className="button button-soft" type="submit" name="intent" value="quick" disabled={isCreating}>Só salvar</button><button className="button button-primary" type="submit" name="intent" value="details" disabled={isCreating}>{isCreating ? 'Salvando...' : 'Salvar e adicionar detalhes'}</button></div>
+          </form>
+        </section>
 
         <section className="progress-card" aria-label="Progresso do dia">
           <div className="progress-heading">
@@ -219,7 +245,7 @@ export function Painel({
 
         <section className="home-widgets" aria-label="Atalhos do Foco"><Link className="widget-plan" href="/planejar"><i aria-hidden="true">▦</i><div><span>Planejamento</span><strong>Organize sua semana</strong></div><small>→</small></Link><Link className="widget-focus" href="/foco"><i aria-hidden="true">◎</i><div><span>Modo Foco</span><strong>Proteja sua atenção</strong></div><small>→</small></Link><Link className="widget-routine" href="/rotinas"><i aria-hidden="true">↻</i><div><span>Rotinas</span><strong>Construa constância</strong></div><small>→</small></Link><Link className="widget-insights" href="/insights"><i aria-hidden="true">↗</i><div><span>Insights</span><strong>Entenda seu ritmo</strong></div><small>→</small></Link></section>
 
-        <section className="mobile-task-overview" aria-label="Visão rápida das tarefas"><div className="mobile-section-title"><div><p className="eyebrow">Tarefas</p><h2>O que pede atenção</h2></div><Link href="/planejar">Ver semana</Link></div><div className="mobile-category-chips" role="group" aria-label="Filtrar por categoria"><button type="button" className={categoryFilter === 'todas' ? 'active' : ''} onClick={() => setCategoryFilter('todas')}>Todas <span>{pending.length}</span></button>{categories.map((category) => <button type="button" key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>{category}</button>)}</div><MobileTaskGroup title="Atrasadas" tone="overdue" tasks={overdue.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} /><MobileTaskGroup title="Hoje" tone="today" tasks={todayTasks.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} /><MobileTaskGroup title="Sem data" tone="inbox" tasks={pending.filter((task) => !task.scheduled_for && (categoryFilter === 'todas' || task.category === categoryFilter))} updatingTask={updatingTask} onToggle={handleToggle} /></section>
+        <section className="mobile-task-overview" aria-label="Visão rápida das tarefas"><div className="mobile-section-title"><div><p className="eyebrow">Tarefas e ideias</p><h2>O que pede atenção</h2></div><Link href="/planejar">Ver semana</Link></div><div className="mobile-category-chips" role="group" aria-label="Filtrar por categoria"><button type="button" className={categoryFilter === 'todas' ? 'active' : ''} onClick={() => setCategoryFilter('todas')}>Todas <span>{pending.length}</span></button>{categories.map((category) => <button type="button" key={category} className={categoryFilter === category ? 'active' : ''} onClick={() => setCategoryFilter(category)}>{category}</button>)}</div><MobileTaskGroup title="Atrasadas" tone="overdue" tasks={overdue.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} onOpen={setSelectedTask} /><MobileTaskGroup title="Hoje" tone="today" tasks={todayTasks.filter((task) => categoryFilter === 'todas' || task.category === categoryFilter)} updatingTask={updatingTask} onToggle={handleToggle} onOpen={setSelectedTask} /><MobileTaskGroup title="Sem data" tone="inbox" tasks={pending.filter((task) => !task.scheduled_for && (categoryFilter === 'todas' || task.category === categoryFilter))} updatingTask={updatingTask} onToggle={handleToggle} onOpen={setSelectedTask} /></section>
 
         <section className="daily-focus-grid" aria-label="Planejamento de hoje">
           <article className="today-card">
@@ -229,47 +255,6 @@ export function Painel({
             ) : <p className="today-empty">Escolha as tarefas que transformam intenção em um dia possível.</p>}
           </article>
           <FocusTimer />
-        </section>
-
-        <section ref={composerRef} className={`task-composer${composerOpen ? ' mobile-open' : ''}`} aria-labelledby="new-task-title">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Próximo passo</p>
-              <h2 id="new-task-title">No que você quer focar?</h2>
-            </div>
-            <button type="button" className="mobile-composer-close" onClick={() => setComposerOpen(false)} aria-label="Fechar">×</button>
-          </div>
-          <form ref={formRef} action={handleCreate} data-task-form className="task-form">
-            <label className="sr-only" htmlFor="task-title">Nova tarefa</label>
-            <input id="task-title" type="text" name="title" placeholder="Ex.: responder propostas pendentes" required maxLength={280} />
-            <label className="sr-only" htmlFor="task-priority">Prioridade</label>
-            <select id="task-priority" name="priority" defaultValue="media">
-              <option value="alta">Alta prioridade</option>
-              <option value="media">Prioridade média</option>
-              <option value="baixa">Baixa prioridade</option>
-            </select>
-            <label className="sr-only" htmlFor="task-category">Categoria</label>
-            <select id="task-category" name="category" defaultValue="">
-              <option value="">Sem categoria</option>
-              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
-            <label className="sr-only" htmlFor="task-date">Quando fazer</label>
-            <select id="task-date" name="scheduledFor" defaultValue={today}>
-              <option value={today}>Hoje</option>
-              <option value="">Sem data</option>
-            </select>
-            <label className="sr-only" htmlFor="task-estimate">Tempo estimado</label>
-            <select id="task-estimate" name="estimateMinutes" defaultValue="25">
-              <option value="15">15 min</option>
-              <option value="25">25 min</option>
-              <option value="45">45 min</option>
-              <option value="60">1 hora</option>
-            </select>
-            {projects.length > 0 && <><label className="sr-only" htmlFor="task-project">Projeto</label><select id="task-project" name="projectId" defaultValue=""><option value="">Sem projeto</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name} · Pro</option>)}</select></>}
-            <button className="button button-primary" type="submit" disabled={isCreating}>
-              {isCreating ? 'Adicionando...' : 'Adicionar tarefa'}
-            </button>
-          </form>
         </section>
 
         {notice && <p className="notice" role="status">{notice}</p>}
@@ -311,7 +296,7 @@ export function Painel({
                 >
                   {task.done && '✓'}
                 </button>
-                <span className="task-title">{task.title}</span>
+                <button type="button" className="task-title task-open" onClick={() => setSelectedTask(task)}>{task.kind === 'idea' ? <i aria-hidden="true">✦</i> : null}{task.title}</button>
                 {task.category && <span className="task-category">{task.category}</span>}
                 {task.scheduled_for === today ? <span className="today-tag">Hoje</span> : (
                   <button className="plan-button" disabled={updatingTask === task.id} onClick={() => handleSchedule(task.id, today)}>Planejar hoje</button>
@@ -352,6 +337,7 @@ export function Painel({
         <section className="mood-card"><div><p className="eyebrow">Check-in rápido</p><h2>Como está sua energia agora?</h2><span>Isso fica somente neste dispositivo.</span></div><div>{moods.map((item) => <button type="button" key={item.value} className={mood === item.value ? 'active' : ''} onClick={() => chooseMood(item.value)} aria-pressed={mood === item.value}><i aria-hidden="true">{item.icon}</i><span>{item.label}</span></button>)}</div></section>
         <button type="button" className="mobile-fab" onClick={openComposer} aria-label="Adicionar nova tarefa">+</button>
       </section>
+      <TaskDetailSheet key={selectedTask?.id ?? 'closed'} task={selectedTask} userId={userId} onClose={() => setSelectedTask(null)} />
     </main>
   )
 }

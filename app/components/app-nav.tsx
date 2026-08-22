@@ -2,7 +2,7 @@ import { PlanBadge } from './plan-badge'
 import Link from 'next/link'
 
 const items = [
-  { label: 'Hoje', href: '/painel', icon: '●' },
+  { label: 'Home', href: '/painel', icon: '⌂' },
   { label: 'Planejar', href: '/planejar', icon: '▦' },
   { label: 'Foco', href: '/foco', icon: '◎' },
   { label: 'Rotinas', href: '/rotinas', icon: '↻', plan: 'essential' as const },
